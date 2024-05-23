@@ -1,15 +1,14 @@
 <script lang="ts">
-    import AddTask from './AddTask.vue'
-    import { mapStores } from 'pinia'
-    import { useTaskStore } from '../stores/TaskStore.ts'
-    import  TaskCard from '../components/TaskCard.vue'
-    import { initializeApp } from "firebase/app";
-    import { getFirestore  } from "firebase/firestore";
-    import { doc, getDoc } from "firebase/firestore";
+import { defineComponent, ref, onMounted } from 'vue';
+import AddTask from './AddTask.vue';
+import { mapStores } from 'pinia';
+import { useTaskStore } from '../stores/TaskStore.ts';
+import TaskCard from '../components/TaskCard.vue';
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
 
-    // Your web app's Firebase configuration
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-    const firebaseConfig = {
+// Your web app's Firebase configuration
+const firebaseConfig = {
     apiKey: "AIzaSyChe4yntohE1ntk4fIxslkB_Ixl6k95c4g",
     authDomain: "todolist-32d17.firebaseapp.com",
     projectId: "todolist-32d17",
@@ -19,32 +18,57 @@
     measurementId: "G-DDGF7SHZFY"
 };
 
-    const appFirestore = initializeApp(firebaseConfig);
-    const db = getFirestore(appFirestore);
-    const docRef = doc(db, "notes/3d0hMpovcCJKnPNUQvCV");
-    const docSnap = await getDoc(docRef);
-    const docState = docSnap.data().state;
-    const docDescription = docSnap.data().description;
-    const docImportance = docSnap.data().importance;
-    const docUnderTask = docSnap.data().underTask;
-    console.log(docState, docDescription, docImportance, docUnderTask);
+const appFirestore = initializeApp(firebaseConfig);
+const db = getFirestore(appFirestore);
 
-    export default {
-        name: "DisplayTaskList",
-        methods: {
-            deleteLi(button) {
-                button.parentNode.style.display = 'none';
+export default defineComponent({
+    name: "DisplayTaskList",
+    components: {
+        AddTask,
+        TaskCard
+    },
+    data() {
+        return {
+            checked: false,
+            docId: '',
+            docLabel: '',
+            docState: '',
+            docDescription: '',
+            docImportance: '',
+            docUnderTask: ''
+        };
+    },
+    methods: {
+        deleteLi(button) {
+            button.parentNode.style.display = 'none';
+        }
+    },
+    computed: {
+        ...mapStores(useTaskStore)
+    },
+    async mounted() {
+        try {
+            const docRef = doc(db, "notes/3d0hMpovcCJKnPNUQvCV");
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                this.docId = data.id;
+                this.docLabel = data.label;
+                this.docState = data.state;
+                this.docDescription = data.description;
+                this.docImportance = data.importance;
+                this.docUnderTask = data.underTask;
+                console.log(this.docState, this.docLabel, this.docId, this.docDescription, this.docImportance, this.docUnderTask);
+            } else {
+                console.error("No such document!");
             }
-        },
-        computed: {
-            ...mapStores(useTaskStore)
-        },
-        components: {
-            AddTask,
-            TaskCard
+        } catch (error) {
+            console.error("Error getting document:", error);
         }
     }
+});
 </script>
+
 
 <template>
     <label for="new-todo">My ToDo List 📋</label>
@@ -52,6 +76,19 @@
     <AddTask />
     <div>
         <TaskCard v-for="task in tasksStore.tasks" :key="task.id" :id="task.id" :task="task.task" v-model:checked="task.checked" />
+    </div>
+    <div class="task">
+        <li id="firebaseTask">
+            <p>{{ docLabel }}</p>
+            <p> {{ docImportance }}</p>
+            <p> {{ docDescription }}</p>
+            <li class = "underTask"> {{ docUnderTask[0] }} </li>
+            <li class = "underTask"> {{ docUnderTask[1] }} </li>
+            <li class = "underTask"> {{ docUnderTask[2] }} </li>
+            <label for="state"> Etat </label>
+            <input name="state" type="checkbox" :checked="checked" @change="$emit('update:checked', $event.target.checked)">
+            <button @click="deleteLi(id, task)">Delete</button>
+        </li>
     </div>
 </template>
 
@@ -109,4 +146,11 @@ li p {
     width: 75%;
     font-weight: bold;
 }
+
+/* #firebaseTask {
+        list-style: none;
+        display: flex;
+        flex-direction: row;
+} */
+
 </style>
